@@ -1,0 +1,737 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Heartbreak No More: Fix Your Messy Data with Dplyr 
+
+Data analysis can be divided into three parts:
+
+1. Extraction
+
+2. Transform
+
+3. Visualize
+
+## What is dplyr?
+dplyr is a powerful R package for data manipulation. It is part of the tidyverse ecosystem of packages and is designed to make it easy to work with data frames. dplyr provides a consistent and intuitive set of verbs for data manipulation, such as filter(), select(), and group_by(). These verbs make it easy to perform common data manipulation tasks like filtering, selecting columns, grouping, and summarizing data.
+
+## Why use dplyr?
+There are many reasons to use dplyr, but some of the most common include:
+* It is a powerful and flexible tool for data manipulation.
+* It is easy to learn and use.
+* It is well-documented and supported.
+* It is part of the tidymodels ecosystem, which makes it easy to use with other packages.
+
+## Downloading packages used in this tutorial
+```{r}
+# Check if tidymodels is already installed
+if (!require(tidymodels)) {
+  # Install tidymodels package
+  install.packages("tidymodels")
+} else {
+  message("tidymodels is already installed!")
+}
+
+```
+```{r}
+# install.packages("nycflights13")
+install.packages("dplyr")
+```
+
+## Importing libraries used in the tutorial
+```{r}
+library(dplyr)
+library(nycflights13)
+library(tidymodels)
+```
+
+
+## Most important dplyr functions 
+* filter(): This function allows you to filter a data frame based on certain criteria.
+
+### Glimpse on the dataset
+```{r}
+glimpse(starwars)
+starwars
+```
+
+
+
+### Filtering by one criterion
+```{r}
+filter(starwars, species == "Human")
+```
+####
+```{r}
+filter(starwars, mass > 1000)
+```
+
+### Filtering by multiple criteria within a single logical expression
+```{r}
+filter(starwars, hair_color == "none" & eye_color == "black")
+```
+###
+```{r}
+filter(starwars, hair_color == "none" | eye_color == "black")
+```
+### When multiple expressions are used, they are combined using &
+```{r}
+filter(starwars, hair_color == "none", eye_color == "black")
+```
+
+The filtering operation may yield different results on grouped
+tibbles because the expressions are computed within groups.
+
+### The following filters rows where `mass` is greater than the global average:
+```{r}
+starwars %>% filter(mass > mean(mass, na.rm = TRUE))
+```
+
+
+### Whereas this keeps rows with `mass` greater than the gender average:
+```{r}
+starwars %>% group_by(gender) %>% filter(mass > mean(mass, na.rm = TRUE))
+
+```
+
+### To refer to column names that are stored as strings, use the `.data` pronoun:
+```{r}
+vars <- c("mass", "height")
+cond <- c(80, 150)
+starwars %>%
+  filter(
+    .data[[vars[[1]]]] > cond[[1]],
+    .data[[vars[[2]]]] > cond[[2]]
+  )
+
+```
+
+
+* select(): This function will enable you to choose specific columns from a data frame.
+
+### Overview of selection features
+Tidyverse selections implement a dialect of R where operators make it easy to select variables:
+
+`:` for selecting a range of consecutive variables.
+
+~! for taking the complement of a set of variables.
+
+& and | for selecting the intersection or the union of two sets of variables.
+
+c() for combining selections.
+
+In addition, you can use selection helpers. Some helpers select specific columns:
+
+everything(): Matches all variables.
+
+last_col(): Select last variable, possibly with an offset.
+
+group_cols(): Select all grouping columns.
+
+Other helpers select variables by matching patterns in their names:
+
+starts_with(): Starts with a prefix.
+
+ends_with(): Ends with a suffix.
+
+contains(): Contains a literal string.
+
+matches(): Matches a regular expression.
+
+num_range(): Matches a numerical range like x01, x02, x03.
+
+Or from variables stored in a character vector:
+
+all_of(): Matches variable names in a character vector. All names must be present, otherwise an out-of-bounds error is thrown.
+
+any_of(): Same as all_of(), except that no error is thrown for names that don't exist.
+
+Or using a predicate function:
+
+### Our dataset
+```{r}
+iris <- as_tibble(iris)
+iris
+names(iris)
+names(starwars)
+```
+### Select variables by name:
+```{r}
+starwars %>% select(height,mass)
+
+```
+### 
+```{r}
+iris %>% pivot_longer(Sepal.Length)
+```
+### Select multiple variables by separating them with commas.
+```{r}
+starwars %>% select(homeworld, height, mass)
+```
+***Functions like tidyr::pivot_longer() don't take variables with dots. In this case use c() to select multiple variables:***
+
+```{r}
+iris %>% pivot_longer(c(Sepal.Length, Petal.Length))
+```
+
+## Operators:
+The : operator selects a range of consecutive variables:
+```{r}
+starwars %>% select(name:mass)
+```
+The : operator selects a range of consecutive variables:
+```{r}
+starwars %>% select(name:mass)
+```
+
+The ! operator negates a selection:
+### 1
+```{r}
+starwars %>% select(!(name:mass))
+```
+
+### 2
+```{r}
+iris %>% select(!c(Sepal.Length, Petal.Length))
+```
+
+### 3
+```{r}
+iris %>% select(!ends_with("Width"))
+```
+To take the difference between two selections, combine the & and ! operators:
+```{r}
+iris %>% select(starts_with("Petal") & !ends_with("Width"))
+```
+
+
+* where(): Applies a function to all variables and selects those for which the function returns TRUE.
+
+### 1
+```{r}
+iris %>% select(where(is.numeric))
+```
+
+### 2
+```{r}
+iris %>% select(where(function(x) is.numeric(x)))
+```
+
+### 3
+```{r}
+iris %>% select(where(~ is.numeric(.x)))
+```
+
+* mutate(): This function allows you to add new columns to a data frame or modify existing columns.
+
+### Newly created variables are available immediately
+```{r}
+starwars %>%
+  select(name, mass) %>%
+  mutate(
+    mass2 = mass * 2,
+    mass2_squared = mass2 * mass2
+  )
+```
+
+
+### As well as adding new variables, you can use mutate() to remove variables and modify existing variables.
+```{r}
+starwars %>%
+  select(name, height, mass, homeworld) %>%
+  mutate(
+    mass = NULL,
+    height = height * 0.0328084 # convert to feet
+  )
+```
+
+# Use across() with mutate() to apply a transformation to multiple columns in a tibble.
+```{r}
+starwars %>%
+  select(name, homeworld, species) %>%
+  mutate(across(!name, as.factor))
+```
+
+
+# Window functions are useful for grouped mutates:
+```{r}
+starwars %>%
+  select(name, mass, homeworld) %>%
+  group_by(homeworld) %>%
+  mutate(rank = min_rank(desc(mass)))
+```
+
+
+# By default, new columns are placed on the far right.
+```{r}
+df <- tibble(x = 1, y = 2)
+df %>% mutate(z = x + y)
+df %>% mutate(z = x + y, .before = 1)
+df %>% mutate(z = x + y, .after = x)
+```
+
+# By default, mutate() keeps all columns from the input data.
+```{r}
+df <- tibble(x = 1, y = 2, a = "a", b = "b")
+df %>% mutate(z = x + y, .keep = "all") # the default
+df %>% mutate(z = x + y, .keep = "used")
+df %>% mutate(z = x + y, .keep = "unused")
+df %>% mutate(z = x + y, .keep = "none")
+```
+
+# Grouping ----------------------------------------
+***The mutate operation may yield different results on grouped tibbles because the expressions are computed within groups.***
+The following normalises `mass` by the global average:
+```{r}
+starwars %>%
+  select(name, mass, species) %>%
+  mutate(mass_norm = mass / mean(mass, na.rm = TRUE))
+```
+
+
+### Whereas this normalises `mass` by the averages within species levels:
+```{r}
+starwars %>%
+  select(name, mass, species) %>%
+  group_by(species) %>%
+  mutate(mass_norm = mass / mean(mass, na.rm = TRUE))
+```
+
+
+### Refer to column names stored as strings with the `.data` pronoun:
+```{r}
+vars <- c("mass", "height")
+mutate(starwars, prod = .data[[vars[[1]]]] * .data[[vars[[2]]]])
+```
+
+
+* group_by(): This function will enable you to group a data frame by one or more columns.
+
+### 1
+```{r}
+by_cyl <- mtcars %>% group_by(cyl)
+
+# grouping doesn't change how the data looks (apart from listing
+# how it's grouped):
+by_cyl
+```
+
+
+### It changes how it acts with the other dplyr verbs:
+```{r}
+by_cyl %>% summarise(
+  disp = mean(disp),
+  hp = mean(hp)
+)
+```
+```{r}
+by_cyl %>% filter(disp == max(disp))
+```
+
+
+Each call to summarise() removes a layer of grouping
+```{r}
+by_vs_am <- mtcars %>% group_by(vs, am)
+by_vs <- by_vs_am %>% summarise(n = n())
+by_vs
+
+```
+
+```{r}
+by_vs %>% summarise(n = sum(n))
+```
+
+To removing grouping, use ungroup
+```{r}
+by_vs %>%
+  ungroup() %>%
+  summarise(n = sum(n))
+```
+
+
+By default, group_by() overrides existing grouping
+```{r}
+by_cyl %>%
+  group_by(vs, am) %>%
+  group_vars()
+```
+
+
+Use add = TRUE to instead append
+```{r}
+by_cyl %>%
+  group_by(vs, am, .add = TRUE) %>%
+  group_vars()
+```
+
+
+# You can group by expressions: this is a short-hand
+# for a mutate() followed by a group_by()
+```{r}
+mtcars %>%
+  group_by(vsam = vs + am)
+```
+
+
+
+* summarize(): This function allows you to summarize the data in a grouped data frame.
+
+
+
+```{r}
+names(mtcars)
+```
+
+### 1
+```{r}
+mtcars %>%
+  summarise(mean = mean(disp), n = n())
+```
+
+### 2
+```{r}
+mtcars %>%
+  group_by(cyl) %>%
+  summarise(mean = mean(disp), n = n())
+```
+### 3
+group_vars() gives names of grouping variables as character vector.
+```{r}
+mtcars %>%
+  group_by(cyl, vs) %>%
+  summarise(cyl_n = n()) %>%
+  group_vars()
+```
+
+### 4
+```{r}
+mtcars %>%
+   group_by(cyl) %>%
+   summarise(qs = quantile(disp, c(0.25, 0.75)), prob = c(0.25, 0.75))
+```
+
+* join(): This function will enable you to join two data frames.
+
+* An inner_join() only keeps observations from x that have a matching key in y.
+
+* A left_join() keeps all observations in x.
+
+* A right_join() keeps all observations in y.
+
+* A full_join() keeps all observations in x and y.
+
+### band_members
+```{r}
+band_members
+
+# data frame 1
+```
+###
+```{r}
+band_instruments
+
+# data frame 2
+```
+
+### 1
+```{r}
+band_members %>%
+  inner_join(band_instruments)
+
+
+```
+
+### 2
+```{r}
+band_members %>% 
+  left_join(band_instruments)
+
+
+```
+
+### 3
+```{r}
+band_members %>% 
+  right_join(band_instruments)
+
+```
+
+### 4
+```{r}
+band_members %>%
+  full_join(band_instruments)
+
+
+```
+
+
+### To suppress the message about joining variables, supply `by`
+```{r}
+band_members %>% inner_join(band_instruments, by = join_by(name))
+```
+
+
+### Use an equality expression if the join variables have different names
+```{r}
+band_members %>% full_join(band_instruments2, by = join_by(name == artist))
+```
+
+
+* arrange(): This function allows you to sort a data frame by one or more columns.
+```{r}
+iris
+```
+
+### 1
+```{r}
+iris %>% arrange(across(starts_with("Sepal"), desc))
+```
+
+
+### 2
+```{r}
+by_cyl <- mtcars %>% group_by(cyl)
+by_cyl %>% arrange(desc(wt))
+```
+
+* distinct(): This function will enable you to remove duplicate rows from a data frame.
+```{r}
+df <- tibble(
+  x = sample(10, 100, rep = TRUE),
+  y = sample(10, 100, rep = TRUE)
+)
+nrow(df)
+```
+### 
+```{r}
+nrow(distinct(df))
+```
+###
+```{r}
+nrow(distinct(df, x, y))
+```
+###
+```{r}
+distinct(df, x)
+```
+
+* rename() changes the names of individual variables using new_name = old_name syntax; rename_with() renames columns using a function.
+
+### 1
+```{r}
+rename_with(iris, toupper)
+```
+
+### 2
+```{r}
+rename(iris, petal_length = Petal.Length)
+```
+
+
+## N/B
+* You can use the pipe operator (%>%) to chain together multiple dplyr operations. It can make your code more concise and easier to read.
+
+* You can use the mutate() function to add new columns to a data frame and the select() function to select specific columns from a data frame.
+
+* You can use the filter() function to filter a data frame based on certain criteria and the group_by() function to group a data frame by one or more columns.
+
+
+
+
+* You can use the summarize() function to summarize a data frame by calculating the mean, median, and standard deviation statistics.
+
+* You can join two data frames using the join() function.
+
+* You can use the arrange() function to sort a data frame by one or more columns.
+
+* You can use the rename() function to rename columns in a data frame.
+
+* The distinct() function can remove duplicate rows from a data frame.
+
+
+# Dataset:gapminder
+
+## load gapminder
+```{r}
+install.packages("gapminder")
+library(gapminder)
+```
+
+## EDA
+## View dataset
+```{r}
+gapminder
+```
+## Type of dataset
+```{r}
+class(gapminder)
+```
+
+## Creating Canada dataset
+```{r}
+(canada <- gapminder[241:252, ])
+```
+## Use filter() to subset data row-wise
+###
+```{r}
+filter(gapminder, lifeExp < 29)
+```
+###
+```{r}
+filter(gapminder, country == "Rwanda", year > 1979)
+```
+
+####
+```{r}
+filter(gapminder, country %in% c("Rwanda", "Afghanistan"))
+```
+## Meet the new pipe operator
+### 
+```{r}
+gapminder %>% head(3)
+```
+##  Use select() to subset the data on variables or columns.
+```{r}
+select(gapminder, year, lifeExp)
+```
+##  Create a copy of gapminder
+```{r}
+(my_gap <- gapminder)
+```
+
+## Use mutate() to add new variables
+```{r}
+my_gap %>%
+  mutate(gdp = pop * gdpPercap)
+```
+
+##  Use arrange() to row-order data in a principled way
+
+### data ordered by year then country
+```{r}
+my_gap %>%
+  arrange(year, country)
+```
+
+### data from 2007 sorted on life expectancy
+```{r}
+my_gap %>%
+  filter(year == 2007) %>%
+  arrange(lifeExp)
+```
+###  life expectancy in descending order
+```{r}
+my_gap %>%
+  filter(year == 2007) %>%
+  arrange(desc(lifeExp))
+```
+## Use rename() to rename variables
+```{r}
+my_gap %>%
+  rename(life_exp = lifeExp,
+         gdp_percap = gdpPercap)
+```
+## select() can rename and reposition variables
+You’ve seen simple use of select(). There are two tricks you might enjoy:
+
+* select() can rename the variables you request to keep.
+* select() can be used with everything() to hoist a variable up to the front of the tibble.
+
+```{r}
+my_gap %>%
+  filter(country == "Burundi", year > 1996) %>% 
+  select(yr = year, lifeExp, gdpPercap) %>% 
+  select(gdpPercap, everything())
+```
+##  group_by()
+### How many observations do we have per continent
+```{r}
+my_gap %>%
+  group_by(continent) %>%
+  summarize(n = n())
+```
+
+### 
+```{r}
+table(gapminder$continent)
+```
+
+###
+```{r}
+str(table(gapminder$continent))
+```
+
+### tally() function 
+```{r}
+my_gap %>%
+  group_by(continent) %>%
+  tally()
+```
+### count() function 
+```{r}
+my_gap %>% 
+  count(continent)
+```
+
+What if we wanted to add the number of unique countries for each continent? You can compute multiple summaries inside summarize(). Use the n_distinct() function to count the number of distinct countries within each continent.
+
+```{r}
+my_gap %>%
+  group_by(continent) %>%
+  summarize(n = n(),
+            n_countries = n_distinct(country))
+```
+
+## General summarization
+```{r}
+my_gap %>%
+  group_by(continent) %>%
+  summarize(avg_lifeExp = mean(lifeExp))
+```
+
+summarize_at() applies the same summary function(s) to multiple variables. Let’s compute average and median life expectancy and GDP per capita by continent by year…but only for 1952 and 2007.
+
+```{r}
+my_gap %>%
+  filter(year %in% c(1952, 2007)) %>%
+  group_by(continent, year) %>%
+  summarize_at(vars(lifeExp, gdpPercap), list(~mean(.), ~median(.)))
+```
+
+Let’s focus just on Asia. What are the minimum and maximum life expectancies seen by year?
+
+```{r}
+my_gap %>%
+  filter(continent == "Asia") %>%
+  group_by(year) %>%
+  summarize(min_lifeExp = min(lifeExp), max_lifeExp = max(lifeExp))
+```
+## Grouped mutate
+Let’s make a new variable that is the years of life expectancy gained (lost) relative to 1952, for each individual country. We group by country and use mutate() to make a new variable. The first() function extracts the first value from a vector. Notice that first() is operating on the vector of life expectancies within each country group.
+
+```{r}
+my_gap %>% 
+  group_by(country) %>% 
+  select(country, year, lifeExp) %>% 
+  mutate(lifeExp_gain = lifeExp - first(lifeExp)) %>% 
+  filter(year < 1963)
+```
+## Grand Finale
+***Question:*** which country experienced the sharpest 5-year drop in life expectancy? Recall that this excerpt of the Gapminder data only has data every five years, e.g. for 1952, 1957, etc. So this really means looking at life expectancy changes between adjacent timepoints.
+```{r}
+my_gap %>%
+  select(country, year, continent, lifeExp) %>%
+  group_by(continent, country) %>%
+  ## within country, take (lifeExp in year i) - (lifeExp in year i - 1)
+  ## positive means lifeExp went up, negative means it went down
+  mutate(le_delta = lifeExp - lag(lifeExp)) %>% 
+  ## within country, retain the worst lifeExp change = smallest or most negative
+  summarize(worst_le_delta = min(le_delta, na.rm = TRUE)) %>% 
+  ## within continent, retain the row with the lowest worst_le_delta
+  top_n(-1, wt = worst_le_delta) %>% 
+  arrange(worst_le_delta)
+```
+
